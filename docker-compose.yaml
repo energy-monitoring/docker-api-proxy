@@ -1,0 +1,41 @@
+version: "3.7"
+services:
+    # Node proxy server
+    node:
+        build: .
+        image: "${IMAGE_NAME}"
+        container_name: "${CONTAINER_NAME}"
+        hostname: "${HOSTNAME}"
+        labels:
+            # enable traefik
+            - "traefik.enable=true"
+            # service -> load balancer (internal port of the app)
+            - "traefik.http.services.lb_energy_api.loadbalancer.server.port=8000"
+            # middleware -> https redirect
+            - "traefik.http.middlewares.energy_api_https.redirectscheme.scheme=https"
+            # page delivery (http -> https)
+            - "traefik.http.routers.energy_api_http.entrypoints=web"
+            - "traefik.http.routers.energy_api_http.rule=Host(`${URL}`)"
+            - "traefik.http.routers.energy_api_http.middlewares=energy_api_https"
+            # page delivery (https)
+            - "traefik.http.routers.energy_api_https.rule=Host(`${URL}`)"
+            - "traefik.http.routers.energy_api_https.entrypoints=websecure"
+            - "traefik.http.routers.energy_api_https.service=lb_energy_api"
+            - "traefik.http.routers.energy_api_https.tls=true"
+            - "traefik.http.routers.energy_api_https.tls.certresolver=letsencryptresolver"
+            # network
+            - "traefik.docker.network=traefik-public"
+        restart: always
+        networks:
+            - traefik-public
+            - network-energy-api
+
+# configure networks
+networks:
+    traefik-public:
+        external: true
+        name: traefik-public
+    network-energy-api:
+        external: false
+        name: network-energy-api
+
